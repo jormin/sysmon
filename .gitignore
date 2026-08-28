@@ -1,0 +1,4 @@
+/sysmon
+/dist/
+*.csv
+*.summary.json
