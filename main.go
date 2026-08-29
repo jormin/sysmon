@@ -26,7 +26,7 @@ func run(args []string) {
 	interval := fs.Duration("interval", time.Second, "采样间隔")
 	duration := fs.Duration("duration", 0, "采样总时长（0 = 直到 Ctrl+C）")
 	count := fs.Int("count", 0, "采样条数（0 = 使用 duration）")
-	out := fs.String("out", "monitor.csv", "输出文件路径，'-' 表示标准输出")
+	out := fs.String("out", "sysmon.csv", "输出文件路径，'-' 表示标准输出")
 	format := fs.String("format", "csv", "输出格式：csv | json | text")
 	quiet := fs.Bool("quiet", false, "不在终端打印实时采样行与汇总")
 	cpu := fs.Bool("cpu", true, "采集 CPU")
