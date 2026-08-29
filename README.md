@@ -5,16 +5,32 @@
 
 ## 获取
 
-在任意机器上交叉编译出 macOS 可执行文件（或直接在 Mac 上 `go build -o sysmon .`）：
+**推荐在 Mac 本机构建**（macOS 的 CPU 采集依赖 cgo，本机 `go build` 默认开启）：
 
 ```bash
-# Apple Silicon (M1/M2/M3...)
-GOOS=darwin GOARCH=arm64 go build -o sysmon_mac_arm64 .
-# Intel MacBook Pro
-GOOS=darwin GOARCH=amd64 go build -o sysmon_mac_amd64 .
+go build -o sysmon .
+./sysmon -interval 5s -out mac.csv
 ```
 
-把二进制拷到 Mac，终端运行：`./sysmon_mac_arm64 -interval 5s -out mac.csv`。
+也可以直接使用一键安装脚本（见下），安装 GitHub Releases 上由 CI 在 macOS runner 上原生构建的版本。
+
+> ⚠️ **macOS 的 CPU 采集依赖 cgo**（gopsutil）：在非 macOS 主机上用 `CGO_ENABLED=0` 交叉编译出的
+> darwin 二进制 CPU 不可用，运行时报 `sysmon: warning: cpu 不可用: not implemented yet`。
+> Linux 目标不依赖 cgo，可在任意主机交叉编译：
+>
+> ```bash
+> # Linux x86_64 / ARM64（任意宿主均可）
+> GOOS=linux GOARCH=amd64 go build -o sysmon_linux_amd64 .
+> GOOS=linux GOARCH=arm64 go build -o sysmon_linux_arm64 .
+> ```
+
+使用仓库自带的构建脚本（darwin 目标会强制在 macOS 宿主上以 cgo 构建，避免产出不可用的二进制）：
+
+```bash
+./build.sh                     # 构建当前宿主平台
+./build.sh v0.0.4 all          # 完整矩阵: darwin/amd64 darwin/arm64 linux/amd64 linux/arm64
+./build.sh v0.0.4 darwin/arm64 # 指定目标(darwin 仅限 macOS 宿主)
+```
 
 ### 一键安装（macOS / Linux）
 
@@ -71,7 +87,7 @@ curl -fsSL https://raw.githubusercontent.com/jormin/sysmon/master/install.sh | s
 
 ## 说明
 
-- 跨平台（Linux/macOS/Windows 均可编译运行）；macOS 上即使交叉编译（无 cgo）也能采集 CPU
-  （自动降级 sysctl kern.cp_times），本地构建则走 gopsutil 原生路径；
+- 跨平台（Linux/macOS/Windows 均可编译运行）；macOS 的 CPU 采集依赖 cgo，Release 产物由 CI 在
+  macOS runner 上原生构建（`build.sh` 会在非 macOS 宿主上拒绝构建 darwin 目标）；
 - CPU/内存任一子系统读取失败只警告一次、跳过该次采样，不中断整体运行；
 - 默认只做 CPU + 内存；网络/磁盘/温度、Grafana/Prometheus 导出不在本期范围。

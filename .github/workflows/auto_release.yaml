@@ -14,13 +14,12 @@ permissions:
 
 jobs:
 
+  # Linux 宿主: 单元测试 + 编译级校验全部发布目标
   test:
-    name: Go Test and Vet
+    name: Go Test and Vet (Linux)
     strategy:
       matrix:
-        # 交叉编译与宿主 OS 无关,统一在 ubuntu 验证发布目标(darwin/linux × amd64/arm64)
-        # go.mod 的依赖 golang.org/x/sys v0.15.0 要求 go>=1.18,故相对 dsh-cli 的 1.17.13 提升到 1.21.13
-        os: [ubuntu-latest]
+        # go.mod 的依赖 golang.org/x/sys v0.15.0 要求 go>=1.18, 统一用 1.21.13
         go: ["1.21.13"]
     runs-on: ubuntu-latest
     steps:
@@ -41,6 +40,8 @@ jobs:
       - name: Build check
         run: go build ./...
 
+      # 仅编译级校验全部发布目标; darwin 的 CPU 采集功能依赖 cgo,
+      # 编译通过不代表功能可用, 运行时正确性由 test-darwin 与原生构建保证
       - name: Cross-compile check (release targets)
         shell: bash
         run: |
@@ -48,26 +49,39 @@ jobs:
             GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0 go build ./... || exit 1
           done
 
-  create-release:
-    name: Create Release
-    needs: test
+  # macOS 宿主: 验证 cgo 开启(原生构建)时能编译通过并跑通测试
+  test-darwin:
+    name: Go Test (macOS, native cgo)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21.13"
+
+      # macOS 上 CPU 采集依赖 cgo(gopsutil), 必须验证 CGO_ENABLED=1 可编译
+      - name: Build check (cgo enabled)
+        run: CGO_ENABLED=1 go build ./...
+
+      - name: Run unit tests
+        run: go test ./...
+
+  # 根据现有 tag 自增得到新版本号(仅 push master 时执行)
+  resolve-version:
+    name: Resolve Version
+    needs: [test, test-darwin]
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
+    outputs:
+      tag: ${{ steps.set-up-tag.outputs.tag }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Set up Go
-        uses: actions/setup-go@v5
-        with:
-          go-version: 1.21.13
-
-      - name: Create target directory
-        run: mkdir -p target
 
       - name: Set up tag
         id: set-up-tag
@@ -99,13 +113,66 @@ jobs:
             tag="v$major.$minor.$patch"
           fi
           echo "New version: $tag"
-          echo "tag=$tag" >> $GITHUB_ENV
-          echo "tag: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Compile Source Code
-        id: compile-source-code
-        run: |
-          bash build.sh $tag
+  # 逐个目标构建并上传产物:
+  #   - darwin 必须在 macOS runner 上原生 cgo 构建(Xcode/clang), 否则 CPU 不可用
+  #   - linux 无 cgo 依赖, 在 ubuntu 上交叉编译即可
+  build-artifacts:
+    name: Build ${{ matrix.name }}
+    needs: resolve-version
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: darwin-amd64
+            target: darwin/amd64
+            runs-on: macos-latest
+          - name: darwin-arm64
+            target: darwin/arm64
+            runs-on: macos-latest
+          - name: linux-amd64
+            target: linux/amd64
+            runs-on: ubuntu-latest
+          - name: linux-arm64
+            target: linux/arm64
+            runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.21.13"
+
+      - name: Compile ${{ matrix.target }}
+        run: bash build.sh "${{ needs.resolve-version.outputs.tag }}" "${{ matrix.target }}"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sysmon-${{ matrix.name }}
+          path: target/*
+
+  create-release:
+    name: Create Release
+    needs: [resolve-version, build-artifacts]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: target
+          merge-multiple: true
 
       - name: Get latest commit message
         id: get_commit_message
@@ -118,18 +185,20 @@ jobs:
         run: |
           git config --global user.name 'github-actions-bot'
           git config --global user.email 'github-actions-bot@users.noreply.github.com'
-          if git rev-parse "$tag" >/dev/null 2>&1; then
-            echo "Tag $tag already exists, skipping tag creation"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping tag creation"
           else
-            git tag -a $tag -F commit_message.txt
-            git push origin $tag
+            git tag -a "$TAG" -F commit_message.txt
+            git push origin "$TAG"
           fi
+        env:
+          TAG: ${{ needs.resolve-version.outputs.tag }}
 
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:
-          tag_name: ${{ env.tag }}
-          name: ${{ env.tag }}
+          tag_name: ${{ needs.resolve-version.outputs.tag }}
+          name: ${{ needs.resolve-version.outputs.tag }}
           body_path: commit_message.txt
           files: target/*
         env:
