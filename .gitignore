@@ -1,3 +1,4 @@
 /sysmon
+/target
 *.csv
 *.summary.json

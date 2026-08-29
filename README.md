@@ -32,7 +32,7 @@ GOOS=darwin GOARCH=amd64 go build -o sysmon_mac_amd64 .
 ./sysmon -interval 5s -cpu=false -out mem_only.csv
 ```
 
-参数：`-interval`（默认 1s）、`-duration`（默认 0=直到 Ctrl+C）、`-count`、`-out`（默认 monitor.csv，'-'=stdout）、`-format`（csv|json|text）、`-quiet`、`-cpu`（默认开）、`-cores`（每核，默认关）、`-mem`（默认开）。
+参数：`-interval`（默认 1s）、`-duration`（默认 0=直到 Ctrl+C）、`-count`、`-out`（默认 monitor.csv，'-'=stdout）、`-format`（csv|json|text）、`-quiet`、`-cpu`（默认开）、`-cores`（每核，默认关）、`-mem`（默认开）、`-version`（打印版本号）。
 
 ## 汇总分析
 

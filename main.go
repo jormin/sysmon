@@ -14,6 +14,9 @@ import (
 	"sysmon/internal/output"
 )
 
+// version 由构建脚本通过 -ldflags "-X main.version=vX.Y.Z" 注入。
+var version = "dev"
+
 func main() {
 	run(os.Args[1:])
 }
@@ -29,11 +32,17 @@ func run(args []string) {
 	cpu := fs.Bool("cpu", true, "采集 CPU")
 	cores := fs.Bool("cores", false, "采集每核 CPU")
 	mem := fs.Bool("mem", true, "采集内存")
+	showVersion := fs.Bool("version", false, "显示版本号")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, "用法: sysmon [flags]\n")
 		fs.PrintDefaults()
 	}
 	fs.Parse(args)
+
+	if *showVersion {
+		fmt.Println(version)
+		return
+	}
 
 	if *interval <= 0 {
 		fmt.Fprintln(os.Stderr, "sysmon: -interval 必须大于 0")
