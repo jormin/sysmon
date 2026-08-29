@@ -73,6 +73,16 @@ curl -fsSL https://raw.githubusercontent.com/jormin/sysmon/master/install.sh | s
 
 参数：`-interval`（默认 1s）、`-duration`（默认 0=直到 Ctrl+C）、`-count`、`-out`（默认 sysmon.csv，'-'=stdout）、`-format`（csv|json|text）、`-quiet`、`-cpu`（默认开）、`-cores`（每核，默认关）、`-mem`（默认开）、`-version`（打印版本号）。
 
+## 升级
+
+```bash
+sysmon upgrade         # 检测 GitHub Releases 最新版, 确认后自动替换自身二进制
+sysmon upgrade -check  # 只检测, 不更新
+```
+
+- 自动识别当前平台（仅 darwin/linux × amd64/arm64 有预编译产物），下载替换并保留 `.old` 备份，失败自动回滚；
+- 环境变量 `SYSMON_REPO` 可覆盖发布仓库（如镜像），`SYSMON_UPGRADE_BASE` 可覆盖下载基址（默认 `https://github.com`）。
+
 ## 汇总分析
 
 每次采样结束自动生成 `<输出名>.summary.json`（csv/text 格式时；json 格式内嵌在报告里）。
