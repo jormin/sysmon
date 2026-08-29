@@ -22,6 +22,11 @@ func main() {
 }
 
 func run(args []string) {
+	// 子命令: sysmon upgrade [-check]
+	if len(args) > 0 && args[0] == "upgrade" {
+		os.Exit(runUpgrade(args[1:]))
+	}
+
 	fs := flag.NewFlagSet("sysmon", flag.ExitOnError)
 	interval := fs.Duration("interval", time.Second, "采样间隔")
 	duration := fs.Duration("duration", 0, "采样总时长（0 = 直到 Ctrl+C）")
