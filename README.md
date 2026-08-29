@@ -16,6 +16,29 @@ GOOS=darwin GOARCH=amd64 go build -o sysmon_mac_amd64 .
 
 把二进制拷到 Mac，终端运行：`./sysmon_mac_arm64 -interval 5s -out mac.csv`。
 
+### 一键安装（macOS / Linux）
+
+自动识别操作系统与 CPU 架构，从 GitHub Releases 下载对应版本安装到 `/usr/local/bin`（目录不可写时自动用 `sudo` 提示授权）：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jormin/sysmon/master/install.sh | sh
+```
+
+常用方式：
+
+```bash
+# 指定版本安装（默认安装最新 release）
+curl -fsSL https://raw.githubusercontent.com/jormin/sysmon/master/install.sh | SYSMON_VERSION=v0.0.1 sh
+
+# 安装到用户目录（无需 sudo）
+curl -fsSL https://raw.githubusercontent.com/jormin/sysmon/master/install.sh | SYSMON_INSTALL_DIR="$HOME/.local/bin" sh
+
+# 卸载
+curl -fsSL https://raw.githubusercontent.com/jormin/sysmon/master/install.sh | sh -s -- --uninstall
+```
+
+环境变量：`SYSMON_VERSION`（版本）、`SYSMON_INSTALL_DIR`（安装目录）、`SYSMON_OS` / `SYSMON_ARCH`（手动指定系统/架构，一般无需设置）、`SYSMON_CHECKSUM`（可选 SHA-256 校验）。
+
 ## 用法
 
 ```bash
