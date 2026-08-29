@@ -73,9 +73,7 @@ func run(args []string) {
 	}
 	ticker := time.NewTicker(*interval)
 	defer ticker.Stop()
-	if !*quiet {
-		fmt.Fprintf(os.Stderr, "sysmon: 开始采样, 间隔 %s, 输出 %s (Ctrl+C 提前结束)\n", *interval, *out)
-	}
+	fmt.Fprintf(os.Stderr, "sysmon: 开始采样, 间隔 %s, 输出 %s (Ctrl+C 提前结束)\n", *interval, *out)
 loop:
 	for {
 		select {
